@@ -1,0 +1,206 @@
+/* ============== MODERN UI FOUNDATION ============== */
+:root {
+  --primary-color: #0066cc;
+  --success-color: #28a745;
+  --warning-color: #ffc107;
+  --danger-color: #dc3545;
+  --dark-color: #212529;
+  --light-color: #f8f9fa;
+  --gray-color: #6c757d;
+  --border-radius: 12px;
+  --box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --transition: all 0.3s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* ===== BACKGROUND FIX (IMPORTANT) ===== */
+body {
+  position: relative;
+  background-image: url("https://i.pinimg.com/1200x/4b/c5/a8/4bc5a864bc7cb0cffbee7b40e28f7c02.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* Overlay for readability */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: -1;
+}
+
+/* ============== BUTTONS ============== */
+.btn {
+  border-radius: var(--border-radius);
+  padding: 0.5rem 1.25rem;
+  font-weight: 500;
+  transition: var(--transition);
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #0052a3;
+  transform: translateY(-2px);
+}
+
+/* ============== CARD ============== */
+.card {
+  border: none;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  background: rgba(255, 255, 255, 0.95);
+  /* glass effect */
+  backdrop-filter: blur(6px);
+}
+
+.card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* ============== PRODUCT CARD (FIXED) ============== */
+.product-card {
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(6px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.product-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+}
+
+/* ✅ FIX IMAGE SIZE */
+.product-card-img {
+  height: 200px;
+  width: 100%;
+  overflow: hidden;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* 🔥 IMPORTANT FIX */
+  transition: transform 0.3s ease;
+}
+
+.product-card:hover .product-card-img img {
+  transform: scale(1.05);
+}
+
+/* BODY */
+.product-card-body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  min-height: 42px;
+  color: #212529;
+}
+
+.product-card-category {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+/* PRICE */
+.product-card-price {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #198754;
+}
+
+/* ACTIONS */
+.product-card-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.product-card-actions button {
+  flex: 1;
+}
+
+/* ============== ORDER CARD ============== */
+.order-card {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(6px);
+}
+
+/* ============== FORM ============== */
+.form-control {
+  border-radius: 12px;
+  border: 1px solid #ddd;
+}
+
+.form-control:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.2rem rgba(0, 102, 204, 0.15);
+}
+
+/* ============== TOAST ============== */
+.toast-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1200;
+}
+
+.toast-message {
+  background: #333;
+  color: white;
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+/* ============== UTILITIES ============== */
+.text-muted {
+  color: #6c757d !important;
+}
+
+.fw-bold {
+  font-weight: 700;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
