@@ -82,6 +82,7 @@ function Register() {
                         >
                             <option value="Seller">Seller</option>
                             <option value="Buyer">Buyer</option>
+
                         </select>
                     </div>
 

@@ -1,5 +1,5 @@
 import api, { toServiceError } from "../api/api";
-import { setToken, clearToken } from "../utils/auth";
+import { setToken, clearToken, setStoredRole } from "../utils/auth";
 
 export const login = async (email, password) => {
   try {
@@ -11,6 +11,7 @@ export const login = async (email, password) => {
     }
 
     setToken(token);
+    setStoredRole(response?.data?.user?.role);
     return response.data;
   } catch (error) {
     throw toServiceError(error, "Unable to log in.");

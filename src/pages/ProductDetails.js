@@ -1,24 +1,19 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-
+import FlagUserModal from "../components/FlagUserModal";
 import { ProductDetailsSkeleton } from "../components/LoadingSkeletons";
 import ToastContainer from "../components/ToastContainer";
 import useToast from "../hooks/useToast";
 import StarRating from "../components/StarRating";
-
-import {
-  getProductById,
-  deleteProduct,
-} from "../services/productService";
-
+import { getProductById, deleteProduct } from "../services/productService";
+import { flagSeller } from "../services/flagService";
 import {
   getReviewsByProduct,
   getReviewSummary,
   createReview,
 } from "../services/reviewService";
-
 import { DEFAULT_PRODUCT_IMAGE } from "../types/product";
-import { getToken } from "../utils/auth";
+import { getToken, getUserRole } from "../utils/auth";
 
 function ProductDetails() {
   const { id } = useParams();
@@ -28,32 +23,35 @@ function ProductDetails() {
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [summary, setSummary] = useState(null);
-
   const [loading, setLoading] = useState(false);
-
   const [ratingValue, setRatingValue] = useState(0);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
+  const [reporting, setReporting] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
   const [isBuyer, setIsBuyer] = useState(false);
 
-  // ================= ROLE =================
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
+  const sellerName = product?.sellerName || "Seller unavailable";
+  const hasSellerId = product?.sellerId !== null && product?.sellerId !== undefined;
+  const reportTarget = product
+    ? {
+        id: product.sellerId,
+        name: sellerName,
+        role: "seller",
+      }
+    : null;
 
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      setIsSeller(payload.role === "Seller");
-      setIsBuyer(payload.role === "Buyer");
-    } catch {
-      setIsSeller(false);
-      setIsBuyer(false);
+  useEffect(() => {
+    if (!getToken()) {
+      return;
     }
+
+    const role = getUserRole();
+    setIsSeller(role === "seller");
+    setIsBuyer(role === "buyer");
   }, []);
 
-  // ================= FETCH DATA =================
   const fetchData = useCallback(async () => {
     setLoading(true);
 
@@ -80,7 +78,6 @@ function ProductDetails() {
     fetchData();
   }, [fetchData]);
 
-  // ================= DELETE =================
   const handleDelete = async () => {
     if (!window.confirm("Are you sure?")) return;
 
@@ -101,7 +98,6 @@ function ProductDetails() {
     }
   };
 
-  // ================= SUBMIT REVIEW =================
   const handleReview = async () => {
     if (!ratingValue) {
       addToast({
@@ -139,14 +135,52 @@ function ProductDetails() {
     }
   };
 
-  // ================= PRICE =================
+  const handleOpenReportSeller = () => {
+    if (!hasSellerId) {
+      addToast({
+        variant: "error",
+        message: "Seller information is not available for this product.",
+      });
+      return;
+    }
+
+    setIsReportModalOpen(true);
+  };
+
+  const handleSubmitSellerReport = async (reason) => {
+    if (!hasSellerId) {
+      addToast({
+        variant: "error",
+        message: "Seller information is not available for this product.",
+      });
+      return;
+    }
+
+    setReporting(true);
+
+    try {
+      await flagSeller(product.sellerId, reason);
+      addToast({
+        variant: "success",
+        message: `${sellerName} reported successfully.`,
+      });
+      setIsReportModalOpen(false);
+    } catch (err) {
+      addToast({
+        variant: "error",
+        message: err.message || "Unable to report this seller.",
+      });
+    } finally {
+      setReporting(false);
+    }
+  };
+
   const price = Number(product?.price || 0);
   const finalPrice =
     product?.discount > 0
       ? price - (price * product.discount) / 100
       : price;
 
-  // ================= RATING =================
   const rating =
     Number(summary?.averageRating ?? product?.rating ?? 0) || 0;
 
@@ -164,7 +198,7 @@ function ProductDetails() {
             className="btn btn-primary mt-3"
             onClick={() => navigate("/products")}
           >
-            ← Back
+            Back
           </button>
         </div>
       </div>
@@ -173,11 +207,8 @@ function ProductDetails() {
 
   return (
     <div className="container mt-4 mb-5">
-
-      {/* PRODUCT */}
       <div className="card p-4 mb-4">
         <div className="row g-4">
-
           <div className="col-md-5">
             <img
               src={product.imageUrl || DEFAULT_PRODUCT_IMAGE}
@@ -207,6 +238,9 @@ function ProductDetails() {
 
             <p>Stock: {product.stock}</p>
             <p>Delivery: {product.deliveryTimeInDays} days</p>
+            <p className="text-muted mb-3">
+              Seller: <span className="fw-semibold text-dark">{sellerName}</span>
+            </p>
 
             {isSeller && (
               <div className="d-flex gap-2">
@@ -227,23 +261,32 @@ function ProductDetails() {
                 </button>
               </div>
             )}
+
+            {isBuyer && (
+              <div className="d-flex gap-2 mt-3">
+                <button
+                  className="btn btn-outline-danger"
+                  onClick={handleOpenReportSeller}
+                  disabled={!hasSellerId}
+                >
+                  Report Seller
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* REVIEW FORM (BEST UX) */}
       {isBuyer && (
         <div className="card p-4 mb-4">
           <h4>Write a Review</h4>
 
-          {/* STAR RATING */}
           <StarRating
             value={ratingValue}
             onChange={(v) => setRatingValue(Number(v))}
             size="lg"
           />
 
-          {/* COMMENT */}
           <textarea
             className="form-control mt-3"
             rows="3"
@@ -262,27 +305,26 @@ function ProductDetails() {
         </div>
       )}
 
-      {/* REVIEWS LIST */}
       <div className="card p-4">
         <h4>Reviews ({reviews.length})</h4>
 
         {reviews.length === 0 ? (
           <p className="text-muted">No reviews yet</p>
         ) : (
-          reviews.map((r) => (
+          reviews.map((review) => (
             <div
-              key={r.id}
+              key={review.id}
               className="border-bottom py-3"
             >
-              <StarRating value={r.rating} readOnly />
+              <StarRating value={review.rating} readOnly />
 
               <p className="mb-1">
-                {r.comment || "No comment"}
+                {review.comment || "No comment"}
               </p>
 
               <small className="text-muted">
-                {r.createdAt
-                  ? new Date(r.createdAt).toLocaleString()
+                {review.createdAt
+                  ? new Date(review.createdAt).toLocaleString()
                   : ""}
               </small>
             </div>
@@ -293,6 +335,23 @@ function ProductDetails() {
       <ToastContainer
         toasts={toasts}
         onRemoveToast={removeToast}
+      />
+
+      <FlagUserModal
+        user={reportTarget}
+        isOpen={isReportModalOpen}
+        loading={reporting}
+        onClose={() => {
+          if (!reporting) {
+            setIsReportModalOpen(false);
+          }
+        }}
+        onSubmit={handleSubmitSellerReport}
+        title="Report Seller"
+        kicker="Buyer Report"
+        description={`Report ${sellerName} for issues related to ${product.name}.`}
+        submitLabel="Submit Report"
+        showUserId={false}
       />
     </div>
   );

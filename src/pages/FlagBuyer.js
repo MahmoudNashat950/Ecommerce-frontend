@@ -1,77 +1,144 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { flagBuyer } from "../services/flagService";
-import LoadingSpinner from "../components/LoadingSpinner";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import AlertMessage from "../components/AlertMessage";
+import FlagUserModal from "../components/FlagUserModal";
+import LoadingSpinner from "../components/LoadingSpinner";
+import ToastContainer from "../components/ToastContainer";
+import useToast from "../hooks/useToast";
+import { getAdminUsers } from "../services/adminService";
+import { flagBuyer } from "../services/flagService";
+
+const getUserId = (user) => user?.id ?? user?.userId ?? user?._id ?? null;
+
+const isBuyer = (user) =>
+  String(user?.role || "").trim().toLowerCase() === "buyer";
 
 function FlagBuyer() {
-  const [buyerId, setBuyerId] = useState("");
-  const [reason, setReason] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [buyers, setBuyers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const navigate = useNavigate();
+  const [selectedBuyer, setSelectedBuyer] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const { toasts, addToast, removeToast } = useToast();
 
-  const handleSubmit = async () => {
+  const loadBuyers = async () => {
     setLoading(true);
-    setMessage("");
     setError("");
+
     try {
-      const result = await flagBuyer(buyerId, reason);
-      setMessage(result?.message || "Buyer flagged successfully.");
-      setBuyerId("");
-      setReason("");
+      const users = await getAdminUsers();
+      setBuyers(users.filter(isBuyer));
     } catch (err) {
-      let errorMsg = err.message || "Unable to flag buyer.";
-      if (err.status === 401) {
-        errorMsg = "Session expired. Please log in again.";
-      } else if (err.status === 403) {
-        errorMsg = "Unauthorized: You must have Seller role to flag buyers.";
-      }
-      setError(errorMsg);
+      setError(err.message || "Unable to load buyers.");
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadBuyers();
+  }, []);
+
+  const handleSubmitFlag = async (reason) => {
+    const buyerId = getUserId(selectedBuyer);
+
+    // ✅ FIX: strict validation (prevents BuyerId = 0 bug)
+    if (!selectedBuyer || !buyerId || buyerId === 0) {
+      addToast({
+        variant: "error",
+        message: "Invalid buyer selected. Please refresh and try again.",
+      });
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      await flagBuyer(buyerId, reason);
+
+      addToast({
+        variant: "success",
+        message: `${selectedBuyer?.name || "Buyer"} reported successfully.`,
+      });
+
+      setSelectedBuyer(null);
+    } catch (err) {
+      addToast({
+        variant: "error",
+        message: err.message || "Unable to report this buyer.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <div className="container mt-4">
-      <div className="card shadow-sm p-4">
-        <h2>Flag Buyer</h2>
-        <p className="text-muted">Report buyer issues or suspicious behavior.</p>
+    <>
+      <div className="container py-4 report-directory-shell">
+        <section className="card report-directory-card">
+          <div className="card-body p-4 p-lg-5">
 
-        {loading && <LoadingSpinner message="Submitting flag..." />}
-        {error && <AlertMessage type="danger">{error}</AlertMessage>}
-        {message && <AlertMessage type="success">{message}</AlertMessage>}
+            {loading ? (
+              <LoadingSpinner message="Loading buyers..." />
+            ) : error ? (
+              <>
+                <AlertMessage type="danger">{error}</AlertMessage>
+                <button
+                  className="btn btn-outline-primary mt-3"
+                  onClick={loadBuyers}
+                >
+                  Try again
+                </button>
+              </>
+            ) : buyers.length === 0 ? (
+              <div className="report-empty-state">
+                <h3>No buyers available</h3>
+                <p>Buyer accounts will appear here when available.</p>
+              </div>
+            ) : (
+              <div className="report-card-grid">
+                {buyers.map((buyer) => {
+                  const buyerId = getUserId(buyer);
 
-        <div className="mb-3">
-          <label className="form-label">Buyer ID</label>
-          <input
-            className="form-control"
-            value={buyerId}
-            onChange={(e) => setBuyerId(e.target.value)}
-            placeholder="Enter buyer id"
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Reason</label>
-          <textarea
-            className="form-control"
-            rows="4"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Describe the issue"
-          />
-        </div>
+                  return (
+                    <article className="card report-user-card" key={buyerId || buyer.email}>
+                      <div className="card-body">
 
-        <div className="d-flex gap-2">
-          <button className="btn btn-danger" onClick={handleSubmit} disabled={loading}>
-            Submit Flag
-          </button>
-          <button className="btn btn-secondary" onClick={() => navigate("/seller/dashboard")}>Back</button>
-        </div>
+                        <h3>{buyer?.name || "Unnamed Buyer"}</h3>
+                        <p>{buyer?.email || "No email"}</p>
+
+                        <button
+                          className="btn btn-danger"
+                          onClick={() => setSelectedBuyer(buyer)}
+                          // ✅ FIX: block invalid IDs
+                          disabled={!buyerId || buyerId === 0}
+                        >
+                          Report Buyer
+                        </button>
+
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
       </div>
-    </div>
+
+      <FlagUserModal
+        user={selectedBuyer}
+        isOpen={Boolean(selectedBuyer)}
+        loading={submitting}
+        onClose={() => !submitting && setSelectedBuyer(null)}
+        onSubmit={handleSubmitFlag}
+        title="Report Buyer"
+        submitLabel="Submit Report"
+        showUserId={false}
+      />
+
+      <ToastContainer toasts={toasts} onRemoveToast={removeToast} />
+    </>
   );
 }
 

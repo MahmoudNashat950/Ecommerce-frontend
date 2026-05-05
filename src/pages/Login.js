@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login } from "../services/authService";
+import { getToken, getUserRole, normalizeRole } from "../utils/auth";
 
 function Login() {
     const [email, setEmail] = useState("");
@@ -11,14 +12,16 @@ function Login() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        const role = localStorage.getItem("role");
+        const token = getToken();
+        const role = normalizeRole(getUserRole());
 
-        if (token && role) {
+        if (token) {
             if (role === "buyer") {
                 navigate("/buyer");
-            } else {
+            } else if (role === "seller") {
                 navigate("/seller");
+            } else if (role === "admin") {
+                navigate("/admin");
             }
         }
     }, [navigate]);
@@ -29,19 +32,21 @@ function Login() {
 
         try {
             const result = await login(email, password);
-            const { token, user } = result;
+            const token = result?.token;
+            const nextRole = normalizeRole(result?.user?.role) || normalizeRole(getUserRole());
 
-            if (!token || !user) {
+            if (!token) {
                 throw new Error("Invalid login response");
             }
 
-            localStorage.setItem("token", token);
-            localStorage.setItem("role", user.role.toLowerCase());
-
-            if (user.role.toLowerCase() === "buyer") {
+            if (nextRole === "buyer") {
                 navigate("/buyer");
-            } else {
+            } else if (nextRole === "seller") {
                 navigate("/seller");
+            } else if (nextRole === "admin") {
+                navigate("/admin");
+            } else {
+                navigate("/");
             }
         } catch (err) {
             console.error(err);

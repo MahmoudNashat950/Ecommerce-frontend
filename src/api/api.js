@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "http://localhost:5213/",
+    baseURL: "http://localhost:5213",
     timeout: 10000,
     headers: {
         "Content-Type": "application/json",
@@ -11,6 +11,7 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem("token");
+    config.headers = config.headers ?? {};
 
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -25,7 +26,7 @@ api.interceptors.response.use(
         if (!error.response) {
             return Promise.reject({
                 message:
-                    "Network error: could not reach the backend. Check that http://localhost:5269 is running and that CORS is configured for http://localhost:3000.",
+                    "Network error: could not reach the backend. Check that the API server is running and reachable.",
             });
         }
 
